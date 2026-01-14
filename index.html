@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>قمر رندا | Randa's Moon</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: linear-gradient(to bottom, #020111 0%, #191621 100%);
+            color: white;
+            font-family: 'Reem Kufi', sans-serif;
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+        }
+
+        /* --- القمر --- */
+        .moon {
+            position: absolute;
+            top: 15%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 150px;
+            height: 150px;
+            background: #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 40px #fff, 0 0 80px rgba(255, 255, 255, 0.4), inset -20px -20px 50px rgba(0,0,0,0.1);
+            z-index: 2;
+            animation: floatMoon 6s ease-in-out infinite;
+        }
+
+        @keyframes floatMoon {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(-10px); }
+        }
+
+        /* --- النجوم (Canvas) --- */
+        #starCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* --- الأرضية --- */
+        .ground {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 15vh;
+            background: #050505;
+            z-index: 10;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            box-shadow: 0 -20px 50px rgba(0,0,0,0.8);
+        }
+
+        /* --- الرجل الذي يمشي (Silhouette) --- */
+        .walking-man {
+            position: absolute;
+            bottom: 14vh; /* فوق الأرضية مباشرة */
+            left: -100px; /* يبدأ من خارج الشاشة */
+            width: 60px;
+            height: 100px;
+            z-index: 11;
+            /* حركة المشي عبر الشاشة */
+            animation: walkAcross 25s linear infinite;
+        }
+
+        /* SVG للرجل */
+        .man-svg {
+            width: 100%;
+            height: 100%;
+            fill: #000;
+            filter: drop-shadow(0 0 5px rgba(255,255,255,0.2));
+            /* حركة اهتزاز بسيطة لمحاكاة المشي */
+            animation: walkingBob 0.8s infinite alternate;
+        }
+
+        @keyframes walkAcross {
+            0% { left: -100px; }
+            100% { left: 110%; } /* يخرج من الجهة الأخرى */
+        }
+
+        @keyframes walkingBob {
+            0% { transform: translateY(0) rotate(2deg); }
+            100% { transform: translateY(-3px) rotate(-2deg); }
+        }
+
+        /* --- النصوص --- */
+        .text-container {
+            position: absolute;
+            top: 45%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 20;
+            text-align: center;
+            width: 100%;
+            pointer-events: none;
+        }
+
+        .dynamic-text {
+            font-size: 3.5rem;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+            opacity: 0;
+            transition: opacity 1s ease-in-out, transform 1s ease-out;
+            background: linear-gradient(to bottom, #fff, #aaa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .dynamic-text.show {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+
+        /* --- التوقيع --- */
+        .signature {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            color: rgba(255,255,255,0.3);
+            font-size: 0.8rem;
+            z-index: 30;
+            font-family: sans-serif;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Canvas للنجوم والشهب -->
+    <canvas id="starCanvas"></canvas>
+
+    <!-- القمر -->
+    <div class="moon"></div>
+
+    <!-- النصوص -->
+    <div class="text-container">
+        <div id="text-display" class="dynamic-text">رندا</div>
+    </div>
+
+    <!-- الرجل الذي يمشي -->
+    <div class="walking-man">
+        <!-- SVG بسيط لرجل يمشي (صورة ظلية) -->
+        <svg class="man-svg" viewBox="0 0 24 50" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 0 C15 0 17 2 17 5 C17 8 15 10 12 10 C9 10 7 8 7 5 C7 2 9 0 12 0 Z M12 11 C16 11 19 14 18 20 L17 30 L20 45 L16 45 L14 32 L10 32 L8 45 L4 45 L7 30 L6 20 C5 14 8 11 12 11 Z" />
+        </svg>
+    </div>
+
+    <!-- الأرضية -->
+    <div class="ground"></div>
+
+    <!-- التوقيع -->
+    <div class="signature">من إعداد قيس جازي</div>
+
+    <script>
+        // --- 1. إدارة النصوص ---
+        const phrases = [
+            "رندا أميرتي",
+            "رندا طفلتي",
+            "رندا حبيبتي",
+            "يا نور عيوني",
+            "نبض قلبي",
+            "كل دنيتي",
+            "أحبكِ جداً"
+        ];
+
+        let textIndex = 0;
+        const textElement = document.getElementById('text-display');
+
+        function changeText() {
+            // إخفاء النص الحالي
+            textElement.classList.remove('show');
+
+            setTimeout(() => {
+                // تغيير النص
+                textIndex = (textIndex + 1) % phrases.length;
+                textElement.innerText = phrases[textIndex];
+                
+                // إظهار النص الجديد
+                textElement.classList.add('show');
+            }, 1000); // ينتظر ثانية للإخفاء
+        }
+
+        // تغيير النص كل 4 ثواني
+        setInterval(changeText, 4000);
+        // تشغيل أول مرة
+        setTimeout(() => textElement.classList.add('show'), 500);
+
+
+        // --- 2. خلفية النجوم (Canvas) ---
+        const canvas = document.getElementById('starCanvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+        let stars = [];
+        let meteors = [];
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            createStars();
+        }
+
+        class Star {
+            constructor() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height * 0.7; // النجوم فقط في الجزء العلوي
+                this.size = Math.random() * 2;
+                this.opacity = Math.random();
+                this.speed = Math.random() * 0.05;
+            }
+            draw() {
+                ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            update() {
+                this.opacity += (Math.random() - 0.5) * 0.1;
+                if (this.opacity < 0) this.opacity = 0;
+                if (this.opacity > 1) this.opacity = 1;
+            }
+        }
+
+        class Meteor {
+            constructor() {
+                this.reset();
+            }
+            reset() {
+                this.x = Math.random() * width;
+                this.y = -100;
+                this.speed = Math.random() * 10 + 5;
+                this.size = Math.random() * 2 + 1;
+                this.angle = Math.PI / 4; // زاوية السقوط
+                this.active = false;
+            }
+            draw() {
+                if (!this.active) return;
+                
+                // رسم ذيل الشهاب
+                let tailLength = 100;
+                let endX = this.x - tailLength * Math.cos(this.angle);
+                let endY = this.y - tailLength * Math.sin(this.angle);
+
+                let gradient = ctx.createLinearGradient(this.x, this.y, endX, endY);
+                gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+                gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+                ctx.strokeStyle = gradient;
+                ctx.lineWidth = this.size;
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(endX, endY);
+                ctx.stroke();
+            }
+            update() {
+                if (!this.active) {
+                    if (Math.random() < 0.005) this.active = true; // احتمالية ظهور شهاب
+                    return;
+                }
+                this.x += this.speed * Math.cos(this.angle);
+                this.y += this.speed * Math.sin(this.angle);
+
+                if (this.y > height || this.x > width) {
+                    this.reset();
+                }
+            }
+        }
+
+        function createStars() {
+            stars = [];
+            for (let i = 0; i < 200; i++) {
+                stars.push(new Star());
+            }
+            meteors = [new Meteor(), new Meteor()]; // شهابين في النظام
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+            
+            // رسم النجوم
+            stars.forEach(star => {
+                star.update();
+                star.draw();
+            });
+
+            // رسم الشهب
+            meteors.forEach(meteor => {
+                meteor.update();
+                meteor.draw();
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+        animate();
+
+    </script>
+</body>
+</html>
